@@ -1,0 +1,29 @@
+# Dépendances et sorties de build (recréées dans l'image)
+node_modules
+.nuxt
+.output
+.data
+dist
+
+# Données locales (base SQLite)
+data
+
+# Git, éditeurs, outils
+.git
+.gitignore
+.vscode
+.idea
+.claude
+.DS_Store
+
+# Logs et variables d'environnement locales
+*.log
+.env
+.env.*
+
+# Fichiers Docker eux-mêmes et documentation
+Dockerfile
+.dockerignore
+compose.yaml
+README.md
+CLAUDE.md

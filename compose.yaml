@@ -1,0 +1,52 @@
+# Backup Manager : application Nuxt + base SQLite persistante
+services:
+  app:
+    build: .
+    image: backup-manager:latest
+    restart: unless-stopped
+    ports:
+      # Publié uniquement sur la boucle locale de l'hôte (inaccessible depuis le réseau)
+      - "127.0.0.1:3000:3000"
+    # Configuration de l'application lue depuis .env (git-ignoré, modèle : .env.example).
+    # Fichier facultatif ; il n'est jamais copié dans l'image (voir .dockerignore).
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Écoute sur toutes les interfaces DU conteneur (requis pour la redirection de port) ;
+      # l'exposition à l'hôte est limitée à 127.0.0.1 par la section `ports`
+      HOST: 0.0.0.0
+      PORT: 3000
+      # Emplacement de la base SQLite (runtimeConfig.dbPath), dans le dossier monté
+      # ci-dessous. Prioritaire sur le fichier .env : chemin propre au conteneur.
+      NUXT_DB_PATH: /data/backup-manager.db
+      # Migrations SQL copiées dans l'image (prioritaire sur un éventuel .env local)
+      NUXT_MIGRATIONS_FOLDER: /app/migrations
+    volumes:
+      # Base SQLite : dossier de l'hôte monté sur /data (conserve tâches et historique).
+      # Défini par BACKUP_DATA_DIR (défaut : ./data, à côté de ce fichier).
+      # Le dossier doit exister et être accessible en écriture à l'uid 1000 : sinon
+      # Docker le crée en root et l'application ne pourra pas écrire la base.
+      #   mkdir -p ./data   (ou le dossier choisi)
+      - ${BACKUP_DATA_DIR:-./data}:/data
+
+      # Répertoire personnel de l'hôte monté au démarrage (HOME de l'utilisateur qui
+      # lance `docker compose`). Dans l'application, saisir les chemins sous /host-home
+      # (ex. /host-home/Documents). Monté en lecture/écriture pour permettre aussi les
+      # destinations ; l'utilisateur du conteneur (uid 1000) doit avoir les droits.
+      # Attention : toute l'arborescence du HOME est accessible à l'application.
+      - ${HOME}:/host-home
+
+      # --- Exemples de bind mounts supplémentaires pour les tâches de backup ---
+      # Les chemins saisis dans l'application (dossier source / destination) sont
+      # ceux du système de fichiers DU CONTENEUR : il faut donc y monter les dossiers
+      # de l'hôte. Décommentez et adaptez les chemins de gauche (côté hôte).
+      #
+      # Source : lecture seule (:ro), le backup ne modifie jamais les originaux.
+      # - /chemin/hote/a/sauvegarder:/backup/source:ro
+      #
+      # Destination : écriture requise. Le conteneur tourne en utilisateur non-root
+      # (uid 1000, `node`) : ce dossier hôte doit lui être accessible en écriture.
+      # - /chemin/hote/destination:/backup/destination
+      #
+      # Dans l'application, utilisez alors /backup/source et /backup/destination.
