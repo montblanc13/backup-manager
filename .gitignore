@@ -35,3 +35,6 @@ coverage
 
 # Claude Code (config locale à la machine)
 .claude/settings.local.json
+
+# Base SQLite locale
+data/
