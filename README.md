@@ -1,48 +1,194 @@
 # Backup Manager
 
-Application web locale pour planifier et suivre des sauvegardes de dossiers. Chaque tâche archive un dossier source en `.tar.gz` horodaté (`<nom>-AAAAMMJJ-HHMMSS.tar.gz`) dans un dossier de destination, selon une planification cron, avec historique des exécutions, liste des fichiers archivés et rétention automatique des anciennes archives.
+Planifiez et suivez des sauvegardes de dossiers depuis une interface web simple : chaque tâche archive un dossier source en `.tar.gz` horodaté, selon une planification cron, avec historique, liste des fichiers archivés et rétention automatique des anciennes archives.
 
-> L'application n'a pas d'authentification : elle est conçue pour un usage local sur une seule machine.
+![Liste des tâches de sauvegarde](docs/images/home.png)
 
-Stack : Nuxt 4, Nuxt UI, Nuxt Content, SQLite (`node:sqlite`) et Drizzle ORM.
+> [!CAUTION]
+> **Application à usage individuel et personnel, à faire tourner sur sa propre machine.**
+> Backup Manager n'a **aucune authentification** et donne accès au système de fichiers du serveur (sélecteur de dossier, lecture des sources, écriture des destinations). Son modèle de sécurité ne permet pas de la partager ni de l'exposer : ne la publiez pas sur Internet, ni sur un réseau partagé, ni derrière un simple reverse proxy. Avec Docker elle n'est publiée que sur `127.0.0.1` ; sans Docker, définissez `HOST=127.0.0.1`. Elle est fournie telle quelle, sans garantie : vérifiez vos sauvegardes et ne l'utilisez pas comme unique protection de données critiques.
+
+## Sommaire
+
+- [Fonctionnalités](#fonctionnalités)
+- [Aperçu](#aperçu)
+- [Démarrage rapide](#démarrage-rapide)
+- [Configuration du fichier `.env`](#configuration-du-fichier-env)
+- [Docker](#docker)
+- [Utilisation](#utilisation)
+- [Développement](#développement)
+- [Limites connues](#limites-connues)
 
 ## Fonctionnalités
 
-- Tâches de sauvegarde (source, destination, cron, exclusions glob) avec lancement manuel.
-- Suggestion d'expression cron par IA à partir d'une description (optionnelle, clé API requise).
-- Historique des exécutions et fichiers archivés consultables, actualisation automatique de l'accueil.
-- Rétention par tâche : nombre maximum d'archives et/ou volume maximum (M ou G), appliquée après chaque sauvegarde réussie.
-- Guides d'aide intégrés sous `/help`, thèmes de couleur et mode clair/sombre, colonne de navigation repliable.
-- La version `vA.B.C` (source : `package.json`) s'affiche en bas de la colonne de gauche.
+- **Tâches de sauvegarde** : dossier source, destination, planification cron, exclusions par motifs glob, activation/désactivation, lancement manuel.
+- **Archives `.tar.gz` horodatées** (`<nom>-AAAAMMJJ-HHMMSS.tar.gz`), écrites en `.partial` puis renommées : une exécution interrompue ne laisse jamais d'archive tronquée sous le nom final.
+- **Rétention par tâche** : garder au plus N archives et/ou un volume total maximum (M ou G). La purge s'applique après chaque sauvegarde réussie et ne touche que les archives de la tâche.
+- **Historique** des exécutions, liste (paginée et filtrable) des fichiers de chaque archive, actualisation automatique de l'accueil.
+- **Suggestion de cron par IA** (optionnelle) : décrivez une planification en français ou en anglais, l'application propose l'expression cron.
+- **Guides d'aide intégrés** (`/help`), thèmes de couleur, mode clair/sombre/système, navigation repliable, interface responsive.
 
-## Prérequis
+## Aperçu
 
-- Node.js 26 (module natif `node:sqlite`) et npm.
+![Page d'une tâche : rétention, exclusions et historique des exécutions](docs/images/task.png)
 
-## Installation et développement
+*Captures réalisées avec des données de démonstration.*
+
+## Démarrage rapide
+
+### Avec Docker (recommandé)
 
 ```bash
+git clone https://github.com/montblanc13/backup-manager.git
+cd backup-manager
+mkdir -p data          # dossier de la base SQLite
+cp .env.example .env   # facultatif, voir la section configuration
+docker compose up --build
+```
+
+Ouvrez ensuite **http://127.0.0.1:9090**. Détails, Docker rootless et montage de dossiers : [Docker](#docker).
+
+### Sans Docker
+
+Prérequis : **Node.js 26** (module natif `node:sqlite`) et npm.
+
+```bash
+git clone https://github.com/montblanc13/backup-manager.git
+cd backup-manager
 npm install
-cp .env.example .env   # puis adapter les valeurs
+cp .env.example .env   # facultatif, voir la section configuration
 npm run dev
 ```
 
-L'application est servie sur `http://localhost:3000`. Les migrations de la base sont appliquées automatiquement au premier accès.
+Ouvrez **http://localhost:3000**. Les migrations de la base sont appliquées automatiquement au premier accès. Pour la production : `npm run build` puis `HOST=127.0.0.1 node .output/server/index.mjs` (sans `HOST`, le serveur de production écoute sur **toutes** les interfaces réseau).
 
-## Configuration
+> Les planifications ne se déclenchent que **pendant que l'application tourne** : si elle est arrêtée à l'heure prévue, la sauvegarde n'est pas rattrapée.
 
-Toute la configuration passe par des variables `NUXT_*` (fichier `.env`, modèle : `.env.example`) :
+## Configuration du fichier `.env`
+
+Toute la configuration passe par des variables d'environnement. Copiez le modèle puis adaptez-le :
+
+```bash
+cp .env.example .env
+```
+
+- Le fichier `.env` est **ignoré par Git** : ne le commitez jamais (il peut contenir une clé d'API).
+- Nuxt lit les variables préfixées `NUXT_` et les associe à la configuration de l'application : `NUXT_<CLE_EN_SNAKE_CASE>` surcharge la clé correspondante (par exemple `dbPath` → `NUXT_DB_PATH`).
+- Toutes les variables sont facultatives : sans fichier `.env`, les valeurs par défaut du tableau ci-dessous s'appliquent.
+- Après modification, **redémarrez** l'application (`npm run dev`, ou `docker compose up -d` pour recréer le conteneur).
+
+### Variables de l'application
+
+| Variable | Rôle | Défaut | Exemple |
+| --- | --- | --- | --- |
+| `NUXT_DB_PATH` | Chemin du fichier de base SQLite. Le dossier parent est créé au besoin. | `./data/backup-manager.db` | `/home/moi/.local/share/backup-manager/db.sqlite` |
+| `NUXT_MIGRATIONS_FOLDER` | Dossier des migrations SQL (Drizzle), appliquées automatiquement au démarrage. À ne changer que pour un déploiement particulier. | `./server/database/migrations` | `/app/migrations` |
+| `NUXT_ANTHROPIC_API_KEY` | Clé d'API Anthropic pour la suggestion de cron par IA. **Optionnelle**, voir l'encadré ci-dessous. | vide (fonction désactivée) | `sk-ant-...` |
+| `NUXT_ANTHROPIC_MODEL` | Modèle utilisé pour la suggestion de cron. Un modèle léger (par exemple `claude-haiku-5-5`) est moins cher et plus rapide. | `claude-opus-5-5` | `claude-haiku-5-5` |
+| `NUXT_BROWSE_ROOT` | Racine du sélecteur de dossier : l'interface ne permet pas de naviguer au-dessus. Les liens symboliques qui sortent de cette racine restent suivis. | `/` | `/home/moi` |
+
+> [!WARNING]
+> **La clé d'API Anthropic est optionnelle.** Elle ne sert qu'à **vous aider à écrire vos expressions cron** : quand vous quittez le champ de description d'une tâche, le texte saisi est envoyé à l'API Anthropic (service tiers, facturé à l'usage) qui propose une expression ; rien n'est appliqué sans votre clic sur « Utiliser ».
+> **Sans clé, tout le reste fonctionne normalement** : seule la suggestion est désactivée (l'API renvoie 503) et vous saisissez l'expression cron à la main.
+> La clé est un **secret** : placez-la uniquement dans `.env`, ne la commitez pas et ne la partagez pas.
+
+### Variables du serveur HTTP
+
+| Variable | Rôle | Défaut | Remarque |
+| --- | --- | --- | --- |
+| `PORT` | Port d'écoute du serveur. **Avec Docker, c'est le port côté hôte** (le port interne du conteneur reste `3000`). | `3000` (Docker : `9090`) | Une valeur déjà utilisée provoque une erreur au démarrage. |
+| `HOST` | Interface d'écoute. **Sans Docker, définissez `HOST=127.0.0.1`** pour n'écouter qu'en local. | `npm run dev` : local ; build de production : **toutes les interfaces** | Dans le conteneur, `0.0.0.0` est forcé, l'exposition est limitée à `127.0.0.1` côté hôte. |
+
+### Variables propres à Docker
 
 | Variable | Rôle | Défaut |
 | --- | --- | --- |
-| `NUXT_DB_PATH` | Fichier SQLite | `./data/backup-manager.db` |
-| `NUXT_MIGRATIONS_FOLDER` | Dossier des migrations Drizzle | `./server/database/migrations` |
-| `NUXT_ANTHROPIC_API_KEY` | Clé API pour la suggestion de cron (sans clé : fonction désactivée) | vide |
-| `NUXT_ANTHROPIC_MODEL` | Modèle utilisé pour cette suggestion | `claude-opus-5-5` |
-| `NUXT_BROWSE_ROOT` | Racine du sélecteur de dossier | `/` |
-| `PORT` / `HOST` | Serveur HTTP | `3000` / selon Nitro |
+| `BACKUP_DATA_DIR` | Dossier **de l'hôte** contenant la base SQLite, monté sur `/data`. Il doit exister et être inscriptible par l'utilisateur du conteneur. | `./data` |
+| `APP_UID` / `APP_GID` | Utilisateur du conteneur. À mettre à `0` et `0` avec **Docker rootless** (voir plus bas). | `1000` / `1000` |
 
-## Commandes
+Avec Docker, `compose.yaml` impose `NUXT_DB_PATH=/data/backup-manager.db` et `NUXT_MIGRATIONS_FOLDER=/app/migrations` : ces deux variables, définies dans le conteneur, **l'emportent sur votre `.env`**. Les chemins de source et de destination saisis dans l'interface sont ceux **du conteneur** (voir [Docker](#docker)).
+
+### Exemple complet
+
+```bash
+# --- Application ---
+NUXT_DB_PATH=./data/backup-manager.db
+# NUXT_MIGRATIONS_FOLDER=./server/database/migrations
+
+# Suggestion de cron par IA (facultatif)
+NUXT_ANTHROPIC_API_KEY=sk-ant-votre-cle
+NUXT_ANTHROPIC_MODEL=claude-haiku-5-5
+
+# Limiter le sélecteur de dossier à votre répertoire personnel
+NUXT_BROWSE_ROOT=/home/moi
+
+# --- Serveur ---
+PORT=3000
+HOST=127.0.0.1   # n'écouter qu'en local (important sans Docker en production)
+
+# --- Docker uniquement ---
+# BACKUP_DATA_DIR=./data
+# APP_UID=1000
+# APP_GID=1000
+```
+
+## Docker
+
+```bash
+docker compose up --build        # construit l'image et démarre
+docker compose up -d --build     # idem, en arrière-plan
+docker compose logs -f           # suivre les journaux
+```
+
+L'application est publiée sur `127.0.0.1` uniquement (jamais sur le réseau), au port hôte `PORT` (défaut `9090`).
+
+### Dossiers accessibles depuis le conteneur
+
+Les chemins saisis dans l'interface sont ceux du système de fichiers **du conteneur** : il faut y monter les dossiers de l'hôte.
+
+- **Base de données** : `BACKUP_DATA_DIR` (défaut `./data`) est monté sur `/data`.
+- **Répertoire personnel** : le HOME de l'hôte est monté sur `/host-home`. Saisissez par exemple `/host-home/Documents` comme source. Toute l'arborescence du HOME est alors accessible à l'application.
+- **Autres dossiers** : décommentez et adaptez les exemples de `compose.yaml` (source en lecture seule avec `:ro`, destination en écriture).
+
+### Droits d'accès
+
+Le conteneur tourne par défaut avec l'utilisateur `node` (uid/gid `1000`). Les dossiers de l'hôte doivent lui être accessibles en écriture (au minimum la base et les destinations) :
+
+```bash
+mkdir -p data && chown 1000:1000 data   # Docker classique
+```
+
+> [!IMPORTANT]
+> **Docker rootless** (`docker info` affiche `rootless`) : l'uid 1000 du conteneur n'est pas votre utilisateur d'hôte, et l'application échoue avec `unable to open database file`. Ajoutez dans `.env` :
+>
+> ```bash
+> APP_UID=0
+> APP_GID=0
+> ```
+>
+> En rootless, le root du conteneur correspond à votre utilisateur d'hôte : il n'a pas de privilège supplémentaire sur la machine.
+
+Sur une distribution avec **SELinux** (Fedora, RHEL…), ajoutez `:z` aux volumes (par exemple `./data:/data:z`).
+
+## Utilisation
+
+1. **Nouvelle tâche** : choisissez un nom, un dossier source et une destination (sélecteur de dossier intégré), puis une planification cron. Décrivez la planification en langage naturel pour obtenir une suggestion (si la clé d'API est configurée).
+2. **Exclusions** : un motif glob par ligne (`**/node_modules/**`, `**/*.tmp`…).
+3. **Rétention** (facultatif) : nombre maximum d'archives et/ou volume maximum.
+4. **Lancer maintenant** pour tester, puis suivez l'exécution dans l'historique et la liste des fichiers archivés.
+
+Restaurer une archive se fait avec `tar` standard :
+
+```bash
+tar -tzf documents-20261114-030000.tar.gz                       # lister
+tar -xzf documents-20261114-030000.tar.gz -C /chemin/restauration   # tout restaurer
+```
+
+Des guides détaillés (cron, exclusions, rétention, archives, thèmes) sont disponibles dans l'application, sous **Aide** (`/help`), et dans [`content/help/`](content/help).
+
+## Développement
+
+Stack : [Nuxt 4](https://nuxt.com), [Nuxt UI](https://ui.nuxt.com), [Nuxt Content](https://content.nuxt.com), SQLite (`node:sqlite`) avec [Drizzle ORM](https://orm.drizzle.team), [croner](https://github.com/Hexagon/croner) pour la planification, [tar](https://github.com/isaacs/node-tar) pour les archives.
 
 ```bash
 npm run dev          # serveur de développement
@@ -52,16 +198,11 @@ npm run typecheck    # vérification des types
 npm run db:generate  # migration Drizzle après modification de server/database/schema.ts
 ```
 
-## Docker
+L'architecture en couches (interface → API → services → repositories) et les conventions de code sont décrites dans [CLAUDE.md](CLAUDE.md). Le suivi des versions (`vA.B.C`, source : `package.json`) est dans [CHANGELOG.md](CHANGELOG.md).
 
-```bash
-docker compose up --build
-```
+## Limites connues
 
-L'application est exposée sur `127.0.0.1` uniquement, port hôte `PORT` (défaut `9090`). La base est stockée dans `BACKUP_DATA_DIR` (défaut `./data`, à créer au préalable et accessible en écriture à l'uid 1000). Les chemins source et destination des tâches sont ceux du conteneur : le HOME de l'hôte est monté sur `/host-home`. Voir `compose.yaml` pour monter d'autres dossiers.
-
-## Documentation
-
-- Guides utilisateur : dossier `content/help/` (affichés sous `/help`).
-- Architecture et conventions de code : [CLAUDE.md](CLAUDE.md).
-- Historique des versions : [CHANGELOG.md](CHANGELOG.md).
+- **Pas d'authentification**, usage local uniquement (voir l'avertissement en tête de page).
+- **Pas de restauration depuis l'interface** : les archives se restaurent avec `tar`.
+- **Pas de rattrapage** des sauvegardes manquées quand l'application est arrêtée.
+- Deux tâches dont les noms donnent le même identifiant simplifié (par exemple « Docs » et « docs ») et qui partagent une destination se purgent mutuellement : donnez-leur des noms distincts ou des destinations séparées.

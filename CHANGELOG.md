@@ -2,6 +2,17 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions `vA.B.C` (A majeur, B mineur, C patch), source de vérité : `package.json`.
 
+## v1.5.2 - 2026-11-14
+
+### Changed
+
+- `README.md` réécrit pour le public : avertissement d'usage personnel et de sécurité, aperçu avec captures (`docs/images/`), démarrage rapide, configuration `.env` détaillée variable par variable (dont l'encadré sur la clé d'API optionnelle), Docker (rootless, droits, volumes), limites connues.
+- `.env.example` : mise à jour de `HOST` et variables Docker (`APP_UID` / `APP_GID`).
+
+### Fixed
+
+- Docker rootless : le conteneur ne pouvait pas ouvrir la base SQLite (`unable to open database file`) car son uid 1000 ne correspond pas à l'utilisateur d'hôte. L'utilisateur du conteneur est réglable via `APP_UID` / `APP_GID` (`compose.yaml`, `.env.example`, README).
+
 ## v1.5.1 - 2026-11-14
 
 ### Fixed
