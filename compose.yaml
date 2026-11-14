@@ -5,7 +5,9 @@ services:
   app:
     container_name: backup-manager
     build: .
-    image: backup-manager:latest
+    # Image locale construite par `build`. Pour utiliser l'image publiée sur GHCR à la place :
+    # APP_IMAGE=ghcr.io/montblanc13/sla-backup-manager:latest (variable d'environnement ou .env)
+    image: ${APP_IMAGE:-backup-manager:latest}
     restart: unless-stopped
     # Utilisateur du conteneur (défaut : `node`, uid/gid 1000, non-root).
     # Docker ROOTLESS : l'uid 1000 du conteneur n'est PAS votre uid d'hôte (il correspond à un

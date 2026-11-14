@@ -2,6 +2,25 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions `vA.B.C` (A majeur, B mineur, C patch), source de vérité : `package.json`.
 
+## v1.6.0 - 2026-11-14
+
+### Fixed
+
+- **Vulnérabilités des dépendances** : `package.json` définit des `overrides` qui forcent des versions corrigées dans `@nuxt/content` (dernière version publiée, qui embarque `zod@3.25.76` sensible à GHSA-mrhx-c7xc-m3w5 et `minimatch@10`, GHSA-g3hv-75wg-m249) : `zod` ^4.6.7 et `minimatch` ^11.0.1 (aussi pour `readdir-glob`). `npm audit` passe de 13 alertes (2 high, 4 moderate, 7 low) à 8 alertes low. À retirer quand `@nuxt/content` publiera des dépendances corrigées. Build, typecheck et rendu des guides vérifiés.
+
+### Added
+
+- **CI GitHub Actions** (`.github/workflows/ci.yml`) : typecheck et build sur Node 26.
+- **Workflow de sécurité** (`.github/workflows/security.yml`) : `npm audit` (blocage à partir de moderate, rapport complet dans le résumé), Dependency Review sur les pull requests, CodeQL, Gitleaks (historique complet) et scan Trivy de l'image Docker. Exécuté sur `main`, les pull requests et chaque lundi. Actions épinglées par SHA.
+- **Publication de l'image Docker sur GHCR** (`.github/workflows/publish.yml`) : sur un tag `vA.B.C`, vérifie que le tag correspond à `package.json`, construit, scanne (Trivy, blocage sur critique corrigeable) puis publie `ghcr.io/montblanc13/sla-backup-manager` en `linux/amd64` et `linux/arm64`, avec les tags `A.B.C`, `A.B` et `latest`, la provenance et le SBOM. `compose.yaml` accepte `APP_IMAGE` pour utiliser cette image à la place du build local.
+- **Dependabot** (`.github/dependabot.yml`) : mises à jour hebdomadaires groupées (npm, GitHub Actions, Docker).
+- **`SECURITY.md`** : politique de signalement privé des vulnérabilités.
+- README : section « Qualité et sécurité ».
+
+### Known
+
+- `npm audit` : 8 alertes « low » restantes, toutes issues de `deepmerge` (aucune version corrigée publiée, dépendance de `@rollup/plugin-node-resolve` → `nitropack` → `nuxt`) et d'`esbuild` (fuite de fichiers limitée au serveur de développement sous Windows). Elles ne bloquent pas la CI.
+
 ## v1.5.2 - 2026-11-14
 
 ### Changed

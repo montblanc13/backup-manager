@@ -1,0 +1,120 @@
+# Sécurité : dépendances, analyse statique, secrets et image Docker
+# Déclenché sur main, sur les pull requests et chaque lundi (nouvelles CVE sur du code inchangé)
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '17 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  npm-audit:
+    name: Audit des dépendances npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+      # Rapport complet affiché dans le résumé du job, jamais bloquant
+      - name: Rapport (toutes sévérités)
+        run: |
+          {
+            echo '### npm audit (dépendances de production)'
+            echo '```'
+            npm audit --omit=dev || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      # Bloque à partir de « moderate ». Les alertes « low » restantes (deepmerge, sans version
+      # corrigée publiée, et sa chaîne de dépendants) sont tolérées : elles rendraient la CI
+      # rouge en permanence sans qu'aucune action soit possible.
+      - name: Blocage sur vulnérabilité moderate ou plus
+        run: npm audit --omit=dev --audit-level=moderate
+
+  dependency-review:
+    name: Revue des dépendances ajoutées
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Bloque une PR qui introduit une dépendance vulnérable (high ou plus) ou sous licence interdite
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+          fail-on-scopes: runtime
+
+  codeql:
+    name: Analyse statique (CodeQL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          languages: javascript-typescript
+          build-mode: none
+      - uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          category: /language:javascript-typescript
+
+  secrets:
+    name: Détection de secrets (Gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # historique complet : un secret supprimé reste dans les anciens commits
+          persist-credentials: false
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker-scan:
+    name: Image Docker (Trivy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build de l'image
+        run: docker build -t backup-manager:scan .
+      # Rapport des vulnérabilités corrigeables (high et critical), non bloquant
+      - name: Rapport (high et critical)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: backup-manager:scan
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '0'
+      # Bloque uniquement sur les vulnérabilités critiques avec correctif disponible
+      - name: Blocage sur vulnérabilité critique
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: backup-manager:scan
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'

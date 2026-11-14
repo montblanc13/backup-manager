@@ -14,7 +14,7 @@ Planifiez et suivez des sauvegardes de dossiers depuis une interface web simple 
 - [Aperçu](#aperçu)
 - [Démarrage rapide](#démarrage-rapide)
 - [Configuration du fichier `.env`](#configuration-du-fichier-env)
-- [Docker](#docker)
+- [Docker](#docker) (dont l'[image GHCR](#image-prête-à-lemploi-ghcr))
 - [Utilisation](#utilisation)
 - [Développement](#développement)
 - [Limites connues](#limites-connues)
@@ -142,6 +142,31 @@ docker compose logs -f           # suivre les journaux
 
 L'application est publiée sur `127.0.0.1` uniquement (jamais sur le réseau), au port hôte `PORT` (défaut `9090`).
 
+### Image prête à l'emploi (GHCR)
+
+Chaque version (tag `vA.B.C`) est publiée sur le GitHub Container Registry sous le nom d'image **`sla-backup-manager`** :
+
+```text
+ghcr.io/montblanc13/sla-backup-manager
+```
+
+- **Tags** : `A.B.C` (version exacte, à privilégier), `A.B` et `latest`.
+- **Architectures** : `linux/amd64` et `linux/arm64`.
+- L'image est construite et analysée (Trivy) par la CI avant publication, avec provenance et SBOM.
+
+Pour l'utiliser avec `compose.yaml` **sans construire l'image** (définissez `APP_IMAGE` dans `.env`, ou en variable d'environnement) :
+
+```bash
+mkdir -p data
+echo 'APP_IMAGE=ghcr.io/montblanc13/sla-backup-manager:latest' >> .env
+docker compose pull
+docker compose up -d --no-build
+```
+
+Les autres réglages de cette section (volumes, `PORT`, `APP_UID` / `APP_GID`, rootless) s'appliquent à l'identique. Sans `APP_IMAGE`, `docker compose up --build` construit l'image depuis les sources.
+
+> L'avertissement d'usage personnel en tête de page s'applique aussi à l'image publiée : elle est destinée à tourner en local, pas à être exposée.
+
 ### Dossiers accessibles depuis le conteneur
 
 Les chemins saisis dans l'interface sont ceux du système de fichiers **du conteneur** : il faut y monter les dossiers de l'hôte.
@@ -199,6 +224,23 @@ npm run db:generate  # migration Drizzle après modification de server/database/
 ```
 
 L'architecture en couches (interface → API → services → repositories) et les conventions de code sont décrites dans [CLAUDE.md](CLAUDE.md). Le suivi des versions (`vA.B.C`, source : `package.json`) est dans [CHANGELOG.md](CHANGELOG.md).
+
+## Qualité et sécurité
+
+Les workflows GitHub Actions (`.github/`) s'exécutent à chaque push sur `main`, à chaque pull request et, pour la sécurité, chaque lundi :
+
+| Contrôle | Outil | Bloque quand… |
+| --- | --- | --- |
+| Types et build | `npm run typecheck`, `npm run build` | une erreur survient |
+| Vulnérabilités des dépendances | `npm audit` | une vulnérabilité **moderate ou plus** est détectée (les « low » sans correctif sont listées dans le résumé du job) |
+| Dépendances ajoutées par une PR | Dependency Review | la PR introduit une dépendance vulnérable (high ou plus) |
+| Analyse statique du code | CodeQL | (alertes dans l'onglet *Security*) |
+| Secrets dans le code et l'historique | Gitleaks | un secret est détecté |
+| Image Docker | Trivy | une vulnérabilité **critique** avec correctif est détectée |
+| Publication de l'image | Build, scan Trivy puis push sur GHCR, sur tag `vA.B.C` | le tag ne correspond pas à `package.json`, ou une vulnérabilité critique corrigeable est détectée |
+| Mises à jour | Dependabot | (pull requests hebdomadaires : npm, Docker, GitHub Actions) |
+
+Pour signaler une faille, voir [SECURITY.md](.github/SECURITY.md).
 
 ## Limites connues
 

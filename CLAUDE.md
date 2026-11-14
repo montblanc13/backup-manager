@@ -38,6 +38,10 @@ Flux d'une requête, par couche (chaque couche n'appelle que celle du dessous) :
 
 La version `vA.B.C` de `package.json` est incrémentée à chaque itération (A majeur, B mineur/fonctionnalité, C patch), affichée en bas de la colonne gauche (`SidebarContent.vue`, via `runtimeConfig.public.appVersion`). Mettre aussi à jour la version racine de `package-lock.json`.
 
+## Dépendances et audit
+
+`package.json` contient des `overrides` (`zod`, `minimatch` dans `@nuxt/content`, `minimatch` dans `readdir-glob`) pour corriger des CVE transitives sans mise à jour amont disponible. Après une montée de version de `@nuxt/content`, vérifier si ces overrides sont encore nécessaires (`npm audit`), les retirer sinon, et contrôler `npm run build` + les pages `/help`. La CI (`.github/workflows/security.yml`) bloque à partir de « moderate ».
+
 ## Configuration
 
 Toute la config passe par `runtimeConfig` (`nuxt.config.ts`), surchargée par des variables `NUXT_<CLE_EN_SNAKE_CASE>` lues depuis `.env` (git-ignoré ; modèle : `.env.example`). Exemple : `dbPath` → `NUXT_DB_PATH`. Ajouter toute nouvelle option de cette façon, jamais via `process.env` direct.
