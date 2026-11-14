@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import type { BackupTask, CronSuggestion } from '#shared/types/backup'
 import { taskInputSchema, type TaskInput } from '#shared/schemas/task'
+import { bytesToVolume, volumeToBytes, type VolumeUnit } from '#shared/utils/retention'
 
 const props = defineProps<{ task?: BackupTask, loading?: boolean }>()
 const emit = defineEmits<{ submit: [input: TaskInput], cancel: [] }>()
+
+const initialVolume = bytesToVolume(props.task?.retentionMaxBytes)
 
 const state = reactive({
   name: props.task?.name ?? '',
@@ -12,7 +15,11 @@ const state = reactive({
   cron: props.task?.cron ?? '0 3 * * *',
   // Une exclusion par ligne dans le champ texte
   exclusionsText: props.task?.exclusions.join('\n') ?? '',
-  enabled: props.task?.enabled ?? true
+  enabled: props.task?.enabled ?? true,
+  // Rétention : champs texte, vides = pas de limite
+  retentionFilesText: props.task?.retentionMaxFiles?.toString() ?? '',
+  retentionVolumeText: initialVolume.value,
+  retentionUnit: initialVolume.unit as VolumeUnit
 })
 
 // Convertit l'état du formulaire en entrée validée par le schéma partagé
@@ -50,10 +57,16 @@ function applySuggestion() {
   suggestion.value = null
 }
 
-const parsed = computed(() => ({
-  ...state,
-  exclusions: state.exclusionsText.split('\n').map(l => l.trim()).filter(Boolean)
-}))
+const parsed = computed(() => {
+  const { exclusionsText, retentionFilesText, retentionVolumeText, retentionUnit, ...rest } = state
+  const filesText = retentionFilesText.trim()
+  return {
+    ...rest,
+    exclusions: exclusionsText.split('\n').map(l => l.trim()).filter(Boolean),
+    retentionMaxFiles: filesText === '' ? null : Number(filesText),
+    retentionMaxBytes: volumeToBytes(retentionVolumeText, retentionUnit)
+  }
+})
 
 function onSubmit() {
   emit('submit', taskInputSchema.parse(parsed.value))
@@ -61,7 +74,7 @@ function onSubmit() {
 </script>
 
 <template>
-  <UForm :schema="taskInputSchema" :state="parsed" class="space-y-4" @submit="onSubmit">
+  <UForm :schema="taskInputSchema" :state="parsed" class="space-y-5" @submit="onSubmit">
     <UFormField label="Nom" name="name" required>
       <UInput v-model="state.name" class="w-full" />
     </UFormField>
@@ -93,7 +106,7 @@ function onSubmit() {
         @blur="suggestFromDescription"
       />
       <UAlert v-if="aiError" color="warning" variant="subtle" icon="i-lucide-circle-alert" :title="aiError" />
-      <UCard v-if="suggestion" variant="subtle" :ui="{ body: 'p-3 sm:p-3 space-y-2' }">
+      <UCard v-if="suggestion" variant="subtle" :ui="{ root: 'ring-primary/30', body: 'p-3 sm:p-3 space-y-2' }">
         <div class="flex items-center justify-between gap-2">
           <code class="font-mono font-semibold">{{ suggestion.cron }}</code>
           <div class="flex gap-2">
@@ -110,8 +123,32 @@ function onSubmit() {
     <UFormField label="Exclusions" name="exclusions" help="Un pattern glob par ligne (ex. *.log, node_modules)">
       <UTextarea v-model="state.exclusionsText" :rows="3" class="w-full font-mono" />
     </UFormField>
-    <USwitch v-model="state.enabled" label="Tâche active" />
-    <div class="flex justify-end gap-2">
+    <!-- Rétention des archives de la destination -->
+    <fieldset class="space-y-3 rounded-lg border border-default bg-elevated/40 p-4">
+      <legend class="sr-only">Rétention</legend>
+      <div class="flex items-center gap-1.5 text-sm font-semibold text-highlighted" aria-hidden="true">
+        <UIcon name="i-lucide-archive-restore" class="size-4 text-muted" />
+        Rétention
+      </div>
+      <p class="text-xs text-muted">
+        Après chaque sauvegarde réussie, les archives les plus anciennes de cette tâche sont supprimées au-delà de la limite.
+        Laissez vide pour tout conserver ; si les deux limites sont renseignées, les deux s'appliquent.
+        L'archive qui vient d'être créée est toujours conservée.
+      </p>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <UFormField label="Nombre max. d'archives" name="retentionMaxFiles">
+          <UInput v-model="state.retentionFilesText" type="number" min="1" step="1" placeholder="Illimité" class="w-full" />
+        </UFormField>
+        <UFormField label="Volume max." name="retentionMaxBytes" help="1 M = 1024² o, 1 G = 1024³ o">
+          <div class="flex gap-2">
+            <UInput v-model="state.retentionVolumeText" inputmode="decimal" placeholder="Illimité, ex. 500" class="w-full" />
+            <USelect v-model="state.retentionUnit" :items="['M', 'G']" class="w-20" aria-label="Unité du volume" />
+          </div>
+        </UFormField>
+      </div>
+    </fieldset>
+    <USwitch v-model="state.enabled" label="Tâche active" description="Une tâche désactivée n'est plus planifiée." />
+    <div class="flex justify-end gap-2 border-t border-default pt-4">
       <UButton color="neutral" variant="ghost" label="Annuler" @click="emit('cancel')" />
       <UButton type="submit" :loading="loading" label="Enregistrer" />
     </div>

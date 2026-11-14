@@ -24,56 +24,78 @@ watch(debouncedSearch, () => { page.value = 1 })
 
 const columns: TableColumn<ExecutionFile>[] = [
   { accessorKey: 'path', header: 'Fichier' },
-  { accessorKey: 'size', header: 'Taille' }
+  { accessorKey: 'size', header: 'Taille', meta: { class: { th: 'text-right', td: 'text-right' } } }
 ]
+
+// Chiffres clés affichés en tuiles
+const stats = computed(() => execution.value
+  ? [
+      { label: 'Fichiers archivés', value: execution.value.filesCopied },
+      { label: 'Éléments exclus', value: execution.value.filesSkipped },
+      { label: 'Volume des données', value: formatBytes(execution.value.bytesCopied) }
+    ]
+  : [])
 </script>
 
 <template>
-  <UContainer v-if="execution" class="space-y-6 py-8">
-    <div>
-      <UButton :to="`/tasks/${execution.taskId}`" icon="i-lucide-arrow-left" variant="link" color="neutral" label="Retour à la tâche" class="-ml-2" />
-      <h1 class="flex items-center gap-3 text-2xl font-bold">
-        Exécution #{{ execution.id }}
-        <ExecutionStatusBadge :status="execution.status" />
-      </h1>
-    </div>
+  <div v-if="execution">
+    <PageHeader :title="`Exécution #${execution.id}`" :back-to="`/tasks/${execution.taskId}`" back-label="Retour à la tâche">
+      <template #badge><ExecutionStatusBadge :status="execution.status" /></template>
+    </PageHeader>
 
-    <UAlert v-if="execution.error" color="error" variant="subtle" icon="i-lucide-circle-alert" title="Erreur" :description="execution.error" />
+    <div class="space-y-6">
+      <UAlert v-if="execution.error" color="error" variant="subtle" icon="i-lucide-circle-alert" title="Erreur" :description="execution.error" />
+      <UAlert v-if="execution.retentionWarning" color="warning" variant="subtle" icon="i-lucide-triangle-alert" title="Rétention : avertissement" :description="execution.retentionWarning" />
 
-    <UCard>
-      <dl class="grid gap-4 sm:grid-cols-3">
-        <div><dt class="text-sm text-muted">Fichiers archivés</dt><dd class="text-xl font-semibold">{{ execution.filesCopied }}</dd></div>
-        <div><dt class="text-sm text-muted">Éléments exclus</dt><dd class="text-xl font-semibold">{{ execution.filesSkipped }}</dd></div>
-        <div><dt class="text-sm text-muted">Volume des données</dt><dd class="text-xl font-semibold">{{ formatBytes(execution.bytesCopied) }}</dd></div>
-        <div><dt class="text-sm text-muted">Début</dt><dd>{{ formatDate(execution.startedAt) }}</dd></div>
-        <div><dt class="text-sm text-muted">Fin</dt><dd>{{ formatDate(execution.finishedAt) }}</dd></div>
-        <div><dt class="text-sm text-muted">Durée</dt><dd>{{ formatDuration(execution.startedAt, execution.finishedAt) }}</dd></div>
-        <div v-if="execution.archivePath" class="sm:col-span-3">
-          <dt class="text-sm text-muted">Archive ({{ formatBytes(execution.archiveBytes ?? 0) }} compressée)</dt>
-          <dd class="break-all font-mono text-sm">{{ execution.archivePath }}</dd>
-        </div>
-      </dl>
-    </UCard>
+      <section class="grid grid-cols-3 gap-2 sm:gap-3" aria-label="Résumé">
+        <UCard v-for="stat in stats" :key="stat.label" :ui="{ root: 'shadow-xs', body: 'p-3 sm:p-4' }">
+          <div class="text-[0.65rem] font-medium uppercase leading-tight tracking-wide text-muted sm:text-xs">{{ stat.label }}</div>
+          <div class="mt-1 text-xl sm:text-2xl font-semibold tabular-nums text-highlighted">{{ stat.value }}</div>
+        </UCard>
+      </section>
 
-    <UCard v-if="execution.status !== 'failed'">
-      <template #header>
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <h2 class="font-semibold">Fichiers embarqués ({{ files.total }})</h2>
-          <UInput v-model="search" icon="i-lucide-search" placeholder="Filtrer par chemin…" class="w-64" />
-        </div>
-      </template>
-      <UTable :data="files.items" :columns="columns" :loading="filesStatus === 'pending'">
-        <template #path-cell="{ row }"><span class="break-all font-mono text-sm">{{ row.original.path }}</span></template>
-        <template #size-cell="{ row }">{{ formatBytes(row.original.size) }}</template>
-        <template #empty>
-          <div class="py-6 text-center text-muted">
-            {{ execution.status === 'running' ? 'Exécution en cours…' : 'Aucun fichier' }}
+      <UCard :ui="{ root: 'shadow-xs' }">
+        <dl class="grid gap-x-6 gap-y-4 sm:grid-cols-3">
+          <div><dt class="text-xs font-medium uppercase tracking-wide text-muted">Début</dt><dd class="mt-1 text-sm tabular-nums">{{ formatDate(execution.startedAt) }}</dd></div>
+          <div><dt class="text-xs font-medium uppercase tracking-wide text-muted">Fin</dt><dd class="mt-1 text-sm tabular-nums">{{ formatDate(execution.finishedAt) }}</dd></div>
+          <div><dt class="text-xs font-medium uppercase tracking-wide text-muted">Durée</dt><dd class="mt-1 text-sm tabular-nums">{{ formatDuration(execution.startedAt, execution.finishedAt) }}</dd></div>
+          <div v-if="execution.archivePath" class="sm:col-span-3">
+            <dt class="text-xs font-medium uppercase tracking-wide text-muted">Archive ({{ formatBytes(execution.archiveBytes ?? 0) }} compressée)</dt>
+            <dd class="mt-1 break-all rounded-md bg-elevated px-2.5 py-1.5 font-mono text-xs">{{ execution.archivePath }}</dd>
+          </div>
+          <div v-if="execution.archivesPurged > 0" class="sm:col-span-3">
+            <dt class="text-xs font-medium uppercase tracking-wide text-muted">Rétention</dt>
+            <dd class="mt-1 flex items-center gap-2 text-sm">
+              <UIcon name="i-lucide-trash-2" class="size-4 shrink-0 text-muted" aria-hidden="true" />
+              {{ execution.archivesPurged }} ancienne(s) archive(s) supprimée(s), {{ formatBytes(execution.bytesPurged) }} libérés
+            </dd>
+          </div>
+        </dl>
+      </UCard>
+
+      <UCard v-if="execution.status !== 'failed'" :ui="{ root: 'overflow-hidden shadow-xs', header: 'px-4 py-3 sm:px-5', body: 'p-0 sm:p-0' }">
+        <template #header>
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h2 class="text-sm font-semibold text-highlighted">Fichiers embarqués <span class="font-normal tabular-nums text-muted">({{ files.total }})</span></h2>
+            <UInput v-model="search" icon="i-lucide-search" placeholder="Filtrer par chemin…" aria-label="Filtrer les fichiers par chemin" size="sm" class="w-full sm:w-64" />
           </div>
         </template>
-      </UTable>
-      <div v-if="files.total > pageSize" class="flex justify-center border-t border-default pt-4">
-        <UPagination v-model:page="page" :items-per-page="pageSize" :total="files.total" />
-      </div>
-    </UCard>
-  </UContainer>
+        <UTable :data="files.items" :columns="columns" :loading="filesStatus === 'pending'" :ui="{ th: 'text-xs font-medium uppercase tracking-wide text-muted', td: 'py-2' }">
+          <template #path-cell="{ row }"><span class="break-all font-mono text-xs">{{ row.original.path }}</span></template>
+          <template #size-cell="{ row }"><span class="tabular-nums">{{ formatBytes(row.original.size) }}</span></template>
+          <template #empty>
+            <UEmpty
+              :icon="execution.status === 'running' ? 'i-lucide-loader-circle' : 'i-lucide-file-x'"
+              :loading="execution.status === 'running'"
+              :title="execution.status === 'running' ? 'Exécution en cours…' : 'Aucun fichier'"
+              variant="naked"
+            />
+          </template>
+        </UTable>
+        <div v-if="files.total > pageSize" class="flex justify-center border-t border-default p-3">
+          <UPagination v-model:page="page" :items-per-page="pageSize" :total="files.total" />
+        </div>
+      </UCard>
+    </div>
+  </div>
 </template>

@@ -21,8 +21,9 @@ const running = ref(false)
 const columns: TableColumn<BackupExecution>[] = [
   { accessorKey: 'startedAt', header: 'Début' },
   { accessorKey: 'status', header: 'État' },
-  { accessorKey: 'filesCopied', header: 'Fichiers archivés' },
-  { accessorKey: 'bytesCopied', header: 'Volume' }
+  { accessorKey: 'filesCopied', header: 'Fichiers archivés', meta: { class: { th: 'hidden sm:table-cell', td: 'hidden sm:table-cell' } } },
+  { accessorKey: 'bytesCopied', header: 'Volume' },
+  { id: 'open', header: '', meta: { class: { th: 'hidden sm:table-cell', td: 'hidden sm:table-cell' } } }
 ]
 
 async function refreshAll() {
@@ -67,57 +68,62 @@ async function remove() {
 </script>
 
 <template>
-  <UContainer v-if="task" class="space-y-6 py-8">
-    <div class="flex flex-wrap items-center justify-between gap-2">
-      <div>
-        <UButton to="/" icon="i-lucide-arrow-left" variant="link" color="neutral" label="Retour" class="-ml-2" />
-        <h1 class="text-2xl font-bold">{{ task.name }}</h1>
-      </div>
-      <div class="flex gap-2">
+  <div v-if="task">
+    <PageHeader :title="task.name" back-to="/" back-label="Toutes les tâches">
+      <template #badge>
+        <UBadge v-if="!task.enabled" color="neutral" variant="outline" class="gap-1"><UIcon name="i-lucide-pause" class="size-3" aria-hidden="true" />Désactivée</UBadge>
+      </template>
+      <template #actions>
         <UButton icon="i-lucide-play" label="Lancer maintenant" :loading="running" @click="runNow" />
         <UButton icon="i-lucide-pencil" color="neutral" variant="outline" label="Modifier" @click="showForm = true" />
-        <UButton icon="i-lucide-trash-2" color="error" variant="outline" label="Supprimer" @click="remove" />
-      </div>
+        <UButton icon="i-lucide-trash-2" color="error" variant="ghost" label="Supprimer" @click="remove" />
+      </template>
+    </PageHeader>
+
+    <div class="space-y-6">
+      <UCard :ui="{ root: 'shadow-xs' }">
+        <dl class="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+          <div class="min-w-0"><dt class="text-xs font-medium uppercase tracking-wide text-muted">Source</dt><dd class="mt-1 break-all font-mono text-sm">{{ task.sourcePath }}</dd></div>
+          <div class="min-w-0"><dt class="text-xs font-medium uppercase tracking-wide text-muted">Destination</dt><dd class="mt-1 break-all font-mono text-sm">{{ task.destinationPath }}</dd></div>
+          <div><dt class="text-xs font-medium uppercase tracking-wide text-muted">Planification</dt><dd class="mt-1 font-mono text-sm">{{ task.cron }}</dd></div>
+          <div>
+            <dt class="text-xs font-medium uppercase tracking-wide text-muted">Prochaine exécution</dt>
+            <dd class="mt-1 text-sm tabular-nums">{{ task.enabled ? formatDate(task.nextRunAt) : 'Désactivée' }}</dd>
+          </div>
+          <div class="sm:col-span-2">
+            <dt class="text-xs font-medium uppercase tracking-wide text-muted">Exclusions</dt>
+            <dd class="mt-1 flex flex-wrap gap-1.5">
+              <UBadge v-for="p in task.exclusions" :key="p" color="neutral" variant="subtle" class="font-mono">{{ p }}</UBadge>
+              <span v-if="!task.exclusions.length" class="text-sm text-muted">Aucune</span>
+            </dd>
+          </div>
+        </dl>
+      </UCard>
+
+      <UCard :ui="{ root: 'overflow-hidden shadow-xs', header: 'px-4 py-3 sm:px-5', body: 'p-0 sm:p-0' }">
+        <template #header><h2 class="text-sm font-semibold text-highlighted">Historique des exécutions</h2></template>
+        <UTable
+          :data="executions"
+          :columns="columns"
+          :ui="{ tr: 'cursor-pointer transition-colors hover:bg-elevated/50', th: 'px-3 text-xs font-medium uppercase tracking-wide text-muted sm:px-4', td: 'px-3 sm:px-4' }"
+          @select="(_e: Event, row: { original: BackupExecution }) => navigateTo(`/executions/${row.original.id}`)"
+        >
+          <template #startedAt-cell="{ row }"><span class="tabular-nums">{{ formatDate(row.original.startedAt) }}</span></template>
+          <template #status-cell="{ row }"><ExecutionStatusBadge :status="row.original.status" /></template>
+          <template #filesCopied-cell="{ row }"><span class="tabular-nums">{{ row.original.filesCopied }}</span></template>
+          <template #bytesCopied-cell="{ row }"><span class="tabular-nums">{{ formatBytes(row.original.bytesCopied) }}</span></template>
+          <template #open-cell><UIcon name="i-lucide-chevron-right" class="size-4 text-muted" aria-hidden="true" /></template>
+          <template #empty>
+            <UEmpty icon="i-lucide-history" title="Aucune exécution" description="Lancez la tâche pour créer la première archive." variant="naked" />
+          </template>
+        </UTable>
+      </UCard>
     </div>
 
-    <UCard>
-      <dl class="grid gap-3 sm:grid-cols-2">
-        <div><dt class="text-sm text-muted">Source</dt><dd class="font-mono">{{ task.sourcePath }}</dd></div>
-        <div><dt class="text-sm text-muted">Destination</dt><dd class="font-mono">{{ task.destinationPath }}</dd></div>
-        <div><dt class="text-sm text-muted">Cron</dt><dd class="font-mono">{{ task.cron }}</dd></div>
-        <div>
-          <dt class="text-sm text-muted">Prochaine exécution</dt>
-          <dd>{{ task.enabled ? formatDate(task.nextRunAt) : 'Désactivée' }}</dd>
-        </div>
-        <div class="sm:col-span-2">
-          <dt class="text-sm text-muted">Exclusions</dt>
-          <dd class="flex flex-wrap gap-1">
-            <UBadge v-for="p in task.exclusions" :key="p" color="neutral" variant="subtle" class="font-mono">{{ p }}</UBadge>
-            <span v-if="!task.exclusions.length">Aucune</span>
-          </dd>
-        </div>
-      </dl>
-    </UCard>
-
-    <UCard>
-      <template #header><h2 class="font-semibold">Historique des exécutions</h2></template>
-      <UTable
-        :data="executions"
-        :columns="columns"
-        class="cursor-pointer"
-        @select="(_e: Event, row: { original: BackupExecution }) => navigateTo(`/executions/${row.original.id}`)"
-      >
-        <template #startedAt-cell="{ row }">{{ formatDate(row.original.startedAt) }}</template>
-        <template #status-cell="{ row }"><ExecutionStatusBadge :status="row.original.status" /></template>
-        <template #bytesCopied-cell="{ row }">{{ formatBytes(row.original.bytesCopied) }}</template>
-        <template #empty><div class="py-6 text-center text-muted">Aucune exécution</div></template>
-      </UTable>
-    </UCard>
-
-    <UModal v-model:open="showForm" title="Modifier la tâche">
+    <UModal v-model:open="showForm" title="Modifier la tâche" description="Source, destination, planification et rétention.">
       <template #body>
         <TaskForm :task="task" :loading="saving" @submit="save" @cancel="showForm = false" />
       </template>
     </UModal>
-  </UContainer>
+  </div>
 </template>

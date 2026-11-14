@@ -11,6 +11,9 @@ export const tasks = sqliteTable('tasks', {
   // Patterns glob exclus, stockés en JSON
   exclusions: text({ mode: 'json' }).$type<string[]>().notNull().default([]),
   enabled: integer({ mode: 'boolean' }).notNull().default(true),
+  // Rétention des archives de la destination (null = illimité) ; volume en octets
+  retentionMaxFiles: integer('retention_max_files'),
+  retentionMaxBytes: integer('retention_max_bytes'),
   createdAt: text('created_at').notNull()
 })
 
@@ -27,7 +30,11 @@ export const executions = sqliteTable('executions', {
   // Archive .tar.gz produite (chemin absolu) et sa taille compressée
   archivePath: text('archive_path'),
   archiveBytes: integer('archive_bytes'),
-  error: text()
+  error: text(),
+  // Résultat de la purge de rétention appliquée après un backup réussi
+  archivesPurged: integer('archives_purged').notNull().default(0),
+  bytesPurged: integer('bytes_purged').notNull().default(0),
+  retentionWarning: text('retention_warning')
 }, table => [index('idx_executions_task').on(table.taskId, table.startedAt)])
 
 /** Fichiers effectivement embarqués dans l'archive d'une exécution */

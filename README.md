@@ -1,75 +1,67 @@
-# Nuxt Minimal Starter
+# Backup Manager
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+Application web locale pour planifier et suivre des sauvegardes de dossiers. Chaque tâche archive un dossier source en `.tar.gz` horodaté (`<nom>-AAAAMMJJ-HHMMSS.tar.gz`) dans un dossier de destination, selon une planification cron, avec historique des exécutions, liste des fichiers archivés et rétention automatique des anciennes archives.
 
-## Setup
+> L'application n'a pas d'authentification : elle est conçue pour un usage local sur une seule machine.
 
-Make sure to install dependencies:
+Stack : Nuxt 4, Nuxt UI, Nuxt Content, SQLite (`node:sqlite`) et Drizzle ORM.
+
+## Fonctionnalités
+
+- Tâches de sauvegarde (source, destination, cron, exclusions glob) avec lancement manuel.
+- Suggestion d'expression cron par IA à partir d'une description (optionnelle, clé API requise).
+- Historique des exécutions et fichiers archivés consultables, actualisation automatique de l'accueil.
+- Rétention par tâche : nombre maximum d'archives et/ou volume maximum (M ou G), appliquée après chaque sauvegarde réussie.
+- Guides d'aide intégrés sous `/help`, thèmes de couleur et mode clair/sombre, colonne de navigation repliable.
+- La version `vA.B.C` (source : `package.json`) s'affiche en bas de la colonne de gauche.
+
+## Prérequis
+
+- Node.js 26 (module natif `node:sqlite`) et npm.
+
+## Installation et développement
 
 ```bash
-# npm
 npm install
-
-# pnpm
-pnpm install
-
-# yarn
-yarn install
-
-# bun
-bun install
-```
-
-## Development Server
-
-Start the development server on `http://localhost:3000`:
-
-```bash
-# npm
+cp .env.example .env   # puis adapter les valeurs
 npm run dev
-
-# pnpm
-pnpm dev
-
-# yarn
-yarn dev
-
-# bun
-bun run dev
 ```
 
-## Production
+L'application est servie sur `http://localhost:3000`. Les migrations de la base sont appliquées automatiquement au premier accès.
 
-Build the application for production:
+## Configuration
+
+Toute la configuration passe par des variables `NUXT_*` (fichier `.env`, modèle : `.env.example`) :
+
+| Variable | Rôle | Défaut |
+| --- | --- | --- |
+| `NUXT_DB_PATH` | Fichier SQLite | `./data/backup-manager.db` |
+| `NUXT_MIGRATIONS_FOLDER` | Dossier des migrations Drizzle | `./server/database/migrations` |
+| `NUXT_ANTHROPIC_API_KEY` | Clé API pour la suggestion de cron (sans clé : fonction désactivée) | vide |
+| `NUXT_ANTHROPIC_MODEL` | Modèle utilisé pour cette suggestion | `claude-opus-5-5` |
+| `NUXT_BROWSE_ROOT` | Racine du sélecteur de dossier | `/` |
+| `PORT` / `HOST` | Serveur HTTP | `3000` / selon Nitro |
+
+## Commandes
 
 ```bash
-# npm
-npm run build
-
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
-bun run build
+npm run dev          # serveur de développement
+npm run build        # build de production
+npm run preview      # prévisualisation du build
+npm run typecheck    # vérification des types
+npm run db:generate  # migration Drizzle après modification de server/database/schema.ts
 ```
 
-Locally preview production build:
+## Docker
 
 ```bash
-# npm
-npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
+docker compose up --build
 ```
 
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+L'application est exposée sur `127.0.0.1` uniquement, port hôte `PORT` (défaut `9090`). La base est stockée dans `BACKUP_DATA_DIR` (défaut `./data`, à créer au préalable et accessible en écriture à l'uid 1000). Les chemins source et destination des tâches sont ceux du conteneur : le HOME de l'hôte est monté sur `/host-home`. Voir `compose.yaml` pour monter d'autres dossiers.
+
+## Documentation
+
+- Guides utilisateur : dossier `content/help/` (affichés sous `/help`).
+- Architecture et conventions de code : [CLAUDE.md](CLAUDE.md).
+- Historique des versions : [CHANGELOG.md](CHANGELOG.md).

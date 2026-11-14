@@ -32,6 +32,10 @@ COPY --from=build --chown=node:node /app/server/database/migrations ./migrations
 # Dossier de la base SQLite, appartenant à l'utilisateur non-root
 # (un dossier hôte monté dessus doit être accessible en écriture à l'uid 1000)
 RUN mkdir -p /data && chown node:node /data
+
+# Nuxt Content (guides d'aide) recrée sa base SQLite interne dans /app/.data au démarrage :
+# le dossier doit être inscriptible par l'utilisateur non-root (contenu régénéré, rien à persister)
+RUN mkdir -p /app/.data && chown node:node /app/.data
 VOLUME ["/data"]
 
 # Utilisateur non-root fourni par l'image officielle (uid 1000)

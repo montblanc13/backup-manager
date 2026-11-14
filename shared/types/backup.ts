@@ -11,6 +11,10 @@ export interface BackupTask {
   /** Patterns glob exclus de la sauvegarde */
   exclusions: string[]
   enabled: boolean
+  /** Nombre maximal d'archives conservées dans la destination (null = illimité) */
+  retentionMaxFiles: number | null
+  /** Volume total maximal des archives conservées, en octets (null = illimité) */
+  retentionMaxBytes: number | null
   createdAt: string
 }
 
@@ -28,6 +32,12 @@ export interface BackupExecution {
   /** Taille compressée de l'archive en octets */
   archiveBytes: number | null
   error: string | null
+  /** Archives anciennes supprimées par la politique de rétention après cette exécution */
+  archivesPurged: number
+  /** Octets libérés par cette purge */
+  bytesPurged: number
+  /** Avertissement si la purge a rencontré une erreur (le backup reste réussi) */
+  retentionWarning: string | null
 }
 
 /** Fichier embarqué dans l'archive d'une exécution */

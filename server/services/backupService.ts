@@ -3,6 +3,7 @@ import { executionFileRepository } from '../repositories/executionFileRepository
 import { executionRepository } from '../repositories/executionRepository'
 import { taskRepository } from '../repositories/taskRepository'
 import { runBackup } from './backupRunner'
+import { applyRetention } from './retentionService'
 
 // Tâches en cours : empêche deux exécutions simultanées d'une même tâche
 const running = new Set<number>()
@@ -28,6 +29,13 @@ async function perform(taskId: number, task: NonNullable<ReturnType<typeof taskR
     })
     // Pas d'archive : on ne garde pas la liste de fichiers d'une exécution échouée
     if (result.status === 'failed') executionFileRepository.deleteByExecution(executionId)
+    // Rétention appliquée seulement après un succès ; un échec de purge n'invalide pas le backup
+    if (result.status === 'success' && result.archivePath) {
+      const retention = await applyRetention(task, result.archivePath)
+      result.archivesPurged = retention.archivesPurged
+      result.bytesPurged = retention.bytesPurged
+      result.retentionWarning = retention.warning
+    }
     executionRepository.finish(executionId, result)
   } finally {
     running.delete(taskId)

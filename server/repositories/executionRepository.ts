@@ -13,6 +13,9 @@ export interface ExecutionResult {
   archivePath: string | null
   archiveBytes: number | null
   error: string | null
+  archivesPurged: number
+  bytesPurged: number
+  retentionWarning: string | null
 }
 
 // Les colonnes ont déjà les mêmes noms que le modèle métier

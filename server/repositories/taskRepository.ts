@@ -16,6 +16,8 @@ function toTask(row: TaskRow): BackupTask {
     cron: row.cron,
     exclusions: row.exclusions,
     enabled: row.enabled,
+    retentionMaxFiles: row.retentionMaxFiles,
+    retentionMaxBytes: row.retentionMaxBytes,
     createdAt: row.createdAt
   }
 }

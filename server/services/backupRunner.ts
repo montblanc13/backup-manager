@@ -25,10 +25,15 @@ function assertNotNested(source: string, destination: string): void {
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
+/** Nom de tâche simplifié (minuscules, sans accents, tirets), préfixe des archives */
+export function taskSlug(taskName: string): string {
+  return taskName.normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'backup'
+}
+
 /** Nom d'archive horodaté (heure locale du serveur), ex. documents-20261114-030000.tar.gz */
 export function archiveFileName(taskName: string, date: Date): string {
-  const slug = taskName.normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'backup'
+  const slug = taskSlug(taskName)
   const stamp = `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`
     + `-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`
   return `${slug}-${stamp}.tar.gz`
@@ -42,7 +47,8 @@ export function archiveFileName(taskName: string, date: Date): string {
 export async function runBackup(task: BackupTask, options: RunOptions): Promise<ExecutionResult> {
   const result: ExecutionResult = {
     status: 'failed', filesCopied: 0, filesSkipped: 0, bytesCopied: 0,
-    archivePath: null, archiveBytes: null, error: null
+    archivePath: null, archiveBytes: null, error: null,
+    archivesPurged: 0, bytesPurged: 0, retentionWarning: null
   }
   const source = resolve(task.sourcePath)
   const destination = resolve(task.destinationPath)

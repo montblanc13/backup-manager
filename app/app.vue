@@ -2,6 +2,8 @@
   <!-- UApp est requis par Nuxt UI (toasts, modales, tooltips) -->
   <UApp>
     <NuxtRouteAnnouncer />
-    <NuxtPage />
+    <NuxtLayout>
+      <NuxtPage />
+    </NuxtLayout>
   </UApp>
 </template>
