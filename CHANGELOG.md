@@ -2,6 +2,18 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions `vA.B.C` (A majeur, B mineur, C patch), source de vérité : `package.json`.
 
+## v1.7.0 - 2026-11-14
+
+### Fixed
+
+- Docker : le sélecteur de dossier affichait « Dossier introuvable » dès la racine : le `NUXT_BROWSE_ROOT` du `.env` (chemin de l'hôte) était transmis à un conteneur où ce dossier n'existait pas.
+- Docker : **le HOME de l'hôte est monté à l'identique** (`${HOME}:${HOME}`) : on saisit les chemins de l'hôte tels quels, et le même `.env` (`NUXT_DB_PATH`, `NUXT_BROWSE_ROOT`) fonctionne en Docker comme avec `npm run dev`, base comprise. `compose.yaml` lit ces deux variables (repli : `~/.local/share/backup-manager/` et le HOME).
+- Message d'erreur explicite quand la racine du sélecteur n'existe pas (`NUXT_BROWSE_ROOT` indiqué).
+
+### Changed
+
+- Docker : suppression de `BACKUP_DATA_DIR` (montage `./data:/data`) et du préfixe `/host-home`. **Migration** : pour garder une base existante dans `./data`, définir `NUXT_DB_PATH=<chemin absolu de ./data>/backup-manager.db` dans `.env` ; les tâches dont les chemins commencent par `/host-home/` sont à corriger. `.env.example` ne définit plus `NUXT_DB_PATH` (un chemin relatif serait invalide dans le conteneur).
+
 ## v1.6.0 - 2026-11-14
 
 ### Fixed

@@ -41,7 +41,6 @@ Planifiez et suivez des sauvegardes de dossiers depuis une interface web simple 
 ```bash
 git clone https://github.com/montblanc13/backup-manager.git
 cd backup-manager
-mkdir -p data          # dossier de la base SQLite
 cp .env.example .env   # facultatif, voir la section configuration
 docker compose up --build
 ```
@@ -81,7 +80,7 @@ cp .env.example .env
 
 | Variable | Rôle | Défaut | Exemple |
 | --- | --- | --- | --- |
-| `NUXT_DB_PATH` | Chemin du fichier de base SQLite. Le dossier parent est créé au besoin. | `./data/backup-manager.db` | `/home/moi/.local/share/backup-manager/db.sqlite` |
+| `NUXT_DB_PATH` | Chemin du fichier de base SQLite. Le dossier parent est créé au besoin. **Avec Docker, utilisez un chemin absolu** sous votre HOME. | `./data/backup-manager.db` (Docker : `~/.local/share/backup-manager/backup-manager.db`) | `/home/moi/.local/share/backup-manager/db.sqlite` |
 | `NUXT_MIGRATIONS_FOLDER` | Dossier des migrations SQL (Drizzle), appliquées automatiquement au démarrage. À ne changer que pour un déploiement particulier. | `./server/database/migrations` | `/app/migrations` |
 | `NUXT_ANTHROPIC_API_KEY` | Clé d'API Anthropic pour la suggestion de cron par IA. **Optionnelle**, voir l'encadré ci-dessous. | vide (fonction désactivée) | `sk-ant-...` |
 | `NUXT_ANTHROPIC_MODEL` | Modèle utilisé pour la suggestion de cron. Un modèle léger (par exemple `claude-haiku-5-5`) est moins cher et plus rapide. | `claude-opus-5-5` | `claude-haiku-5-5` |
@@ -103,16 +102,16 @@ cp .env.example .env
 
 | Variable | Rôle | Défaut |
 | --- | --- | --- |
-| `BACKUP_DATA_DIR` | Dossier **de l'hôte** contenant la base SQLite, monté sur `/data`. Il doit exister et être inscriptible par l'utilisateur du conteneur. | `./data` |
 | `APP_UID` / `APP_GID` | Utilisateur du conteneur. À mettre à `0` et `0` avec **Docker rootless** (voir plus bas). | `1000` / `1000` |
+| `APP_IMAGE` | Image à utiliser au lieu de la construire (voir [GHCR](#image-prête-à-lemploi-ghcr)). | construite localement |
 
-Avec Docker, `compose.yaml` impose `NUXT_DB_PATH=/data/backup-manager.db` et `NUXT_MIGRATIONS_FOLDER=/app/migrations` : ces deux variables, définies dans le conteneur, **l'emportent sur votre `.env`**. Les chemins de source et de destination saisis dans l'interface sont ceux **du conteneur** (voir [Docker](#docker)).
+Avec Docker, **le même `.env` fonctionne qu'en développement** : le HOME de l'hôte est monté à l'identique dans le conteneur (voir [Docker](#docker)), donc `NUXT_DB_PATH`, `NUXT_BROWSE_ROOT` et les chemins des tâches sont valables tels quels. `compose.yaml` ne force que `HOST`, `PORT` (interne `3000`) et `NUXT_MIGRATIONS_FOLDER=/app/migrations`, qui l'emportent sur le `.env`.
 
 ### Exemple complet
 
 ```bash
 # --- Application ---
-NUXT_DB_PATH=./data/backup-manager.db
+NUXT_DB_PATH=/home/moi/.local/share/backup-manager/backup-manager.db   # chemin absolu
 # NUXT_MIGRATIONS_FOLDER=./server/database/migrations
 
 # Suggestion de cron par IA (facultatif)
@@ -127,9 +126,8 @@ PORT=3000
 HOST=127.0.0.1   # n'écouter qu'en local (important sans Docker en production)
 
 # --- Docker uniquement ---
-# BACKUP_DATA_DIR=./data
-# APP_UID=1000
-# APP_GID=1000
+# APP_UID=0     # Docker rootless (voir plus bas)
+# APP_GID=0
 ```
 
 ## Docker
@@ -169,18 +167,19 @@ Les autres réglages de cette section (volumes, `PORT`, `APP_UID` / `APP_GID`, r
 
 ### Dossiers accessibles depuis le conteneur
 
-Les chemins saisis dans l'interface sont ceux du système de fichiers **du conteneur** : il faut y monter les dossiers de l'hôte.
+Votre **HOME est monté à l'identique** dans le conteneur : saisissez dans l'application les chemins de l'hôte, tels quels (`/home/moi/Documents`, …). La base SQLite (`NUXT_DB_PATH`) et le sélecteur de dossier (`NUXT_BROWSE_ROOT`, défaut : votre HOME) lisent les valeurs de votre `.env`, comme avec `npm run dev`. Sans `.env`, la base est créée dans `~/.local/share/backup-manager/`.
 
-- **Base de données** : `BACKUP_DATA_DIR` (défaut `./data`) est monté sur `/data`.
-- **Répertoire personnel** : le HOME de l'hôte est monté sur `/host-home`. Saisissez par exemple `/host-home/Documents` comme source. Toute l'arborescence du HOME est alors accessible à l'application.
-- **Autres dossiers** : décommentez et adaptez les exemples de `compose.yaml` (source en lecture seule avec `:ro`, destination en écriture).
+Pour un disque ou un dossier **hors du HOME**, décommentez et adaptez un exemple de `compose.yaml` en montant le dossier **au même chemin** que sur l'hôte (`/mnt/sauvegardes:/mnt/sauvegardes`).
+
+> [!WARNING]
+> Ne lancez pas `npm run dev` et Docker **en même temps** sur la même base : les deux exécuteraient chaque planification, et les archives seraient produites en double.
 
 ### Droits d'accès
 
 Le conteneur tourne par défaut avec l'utilisateur `node` (uid/gid `1000`). Les dossiers de l'hôte doivent lui être accessibles en écriture (au minimum la base et les destinations) :
 
 ```bash
-mkdir -p data && chown 1000:1000 data   # Docker classique
+chown -R 1000:1000 /chemin/de/la/destination   # Docker classique ; la base se crée sous votre HOME
 ```
 
 > [!IMPORTANT]
@@ -193,7 +192,7 @@ mkdir -p data && chown 1000:1000 data   # Docker classique
 >
 > En rootless, le root du conteneur correspond à votre utilisateur d'hôte : il n'a pas de privilège supplémentaire sur la machine.
 
-Sur une distribution avec **SELinux** (Fedora, RHEL…), ajoutez `:z` aux volumes (par exemple `./data:/data:z`).
+Sur une distribution avec **SELinux** (Fedora, RHEL…), ajoutez `:z` aux volumes (par exemple `/mnt/sauvegardes:/mnt/sauvegardes:z`).
 
 ## Utilisation
 

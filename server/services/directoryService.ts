@@ -26,7 +26,13 @@ export async function listDirectories(root: string, requested?: string): Promise
     throw new DirectoryError('Dossier hors de la zone autorisée', 403)
   }
   const stat = await fs.stat(target).catch(() => null)
-  if (!stat?.isDirectory()) throw new DirectoryError('Dossier introuvable', 404)
+  if (!stat?.isDirectory()) {
+    // Racine elle-même absente : message explicite (cas typique : chemin de l'hôte dans le conteneur)
+    if (target === rootPath) {
+      throw new DirectoryError(`La racine du sélecteur de dossier est introuvable : ${rootPath} (voir NUXT_BROWSE_ROOT)`, 404)
+    }
+    throw new DirectoryError('Dossier introuvable', 404)
+  }
 
   let entries
   try {
