@@ -2,6 +2,13 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions `vA.B.C` (A majeur, B mineur, C patch), source de vérité : `package.json`.
 
+## v1.7.1 - 2026-11-14
+
+### Fixed
+
+- Docker : une destination ou une source passant par un lien symbolique qui pointe hors du HOME (disque externe, `/run/media/...`) était « introuvable » dans le conteneur. Montage de la cible au même chemin via un `compose.override.yaml` local (modèle `compose.override.example.yaml`, fichier ignoré par Git), documenté dans le README.
+- Une destination cassée par un lien symbolique échoue maintenant avec un message explicite (lien, cible, piste Docker) au lieu d'une erreur de système obscure.
+
 ## v1.7.0 - 2026-11-14
 
 ### Fixed

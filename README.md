@@ -174,6 +174,19 @@ Pour un disque ou un dossier **hors du HOME**, décommentez et adaptez un exempl
 > [!WARNING]
 > Ne lancez pas `npm run dev` et Docker **en même temps** sur la même base : les deux exécuteraient chaque planification, et les archives seraient produites en double.
 
+### Liens symboliques et disques externes
+
+Seul le HOME est monté par défaut. Un lien symbolique du HOME qui pointe **vers l'extérieur** (disque externe, `/mnt/...`, `/run/media/...`) est **cassé dans le conteneur** tant que sa cible n'y est pas montée : la destination est alors « introuvable » alors qu'elle fonctionne avec `npm run dev`. Pour le vérifier : `ls -l ~/Documents/kDrive`.
+
+Montez la **cible** du lien au même chemin que sur l'hôte, dans un fichier local `compose.override.yaml` (ignoré par Git, chargé automatiquement) :
+
+```bash
+cp compose.override.example.yaml compose.override.yaml   # puis adapter le chemin du disque
+docker compose up -d
+```
+
+Le disque doit être monté sur l'hôte **avant** de démarrer le conteneur. En cas de lien cassé, la sauvegarde échoue avec un message qui nomme le lien et sa cible.
+
 ### Droits d'accès
 
 Le conteneur tourne par défaut avec l'utilisateur `node` (uid/gid `1000`). Les dossiers de l'hôte doivent lui être accessibles en écriture (au minimum la base et les destinations) :

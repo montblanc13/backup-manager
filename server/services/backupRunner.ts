@@ -1,5 +1,5 @@
 import { promises as fs } from 'node:fs'
-import { join, relative, resolve, sep } from 'node:path'
+import { dirname, join, relative, resolve, sep } from 'node:path'
 import { create } from 'tar'
 import picomatch from 'picomatch'
 import type { BackupTask, ExecutionFile } from '#shared/types/backup'
@@ -13,6 +13,22 @@ export interface RunOptions {
   startedAt: Date
   /** Reçoit par lots les fichiers effectivement embarqués dans l'archive */
   onFiles: (files: ExecutionFile[]) => void
+}
+
+/**
+ * Explique l'échec d'accès à la destination quand elle (ou un dossier parent) est un lien
+ * symbolique cassé. Cas typique en Docker : le lien pointe hors des dossiers montés dans le conteneur.
+ */
+async function brokenLinkHint(path: string): Promise<string | null> {
+  for (let current = path; current !== dirname(current); current = dirname(current)) {
+    const link = await fs.lstat(current).catch(() => null)
+    if (link?.isSymbolicLink() && !(await fs.stat(current).catch(() => null))) {
+      const target = await fs.readlink(current).catch(() => '?')
+      return `Le lien symbolique ${current} pointe vers ${target}, introuvable. `
+        + 'Si l\'application tourne dans Docker, montez ce dossier dans le conteneur au même chemin (voir compose.override.example.yaml).'
+    }
+  }
+  return null
 }
 
 /** Vérifie que la destination n'est pas située dans la source (l'archive s'y inclurait) */
@@ -59,7 +75,11 @@ export async function runBackup(task: BackupTask, options: RunOptions): Promise<
     const stat = await fs.stat(source).catch(() => null)
     if (!stat?.isDirectory()) throw new Error(`Dossier source introuvable : ${source}`)
     assertNotNested(source, destination)
-    await fs.mkdir(destination, { recursive: true })
+    try {
+      await fs.mkdir(destination, { recursive: true })
+    } catch (error) {
+      throw new Error(await brokenLinkHint(destination) ?? (error instanceof Error ? error.message : String(error)))
+    }
     // Refuse d'écraser une archive existante (même seconde)
     if (await fs.stat(finalPath).catch(() => null)) throw new Error(`L'archive existe déjà : ${finalPath}`)
 

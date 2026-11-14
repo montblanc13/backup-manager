@@ -38,3 +38,6 @@ coverage
 
 # Base SQLite locale
 data/
+
+# Montages Docker propres à la machine
+compose.override.yaml

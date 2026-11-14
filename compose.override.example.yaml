@@ -1,0 +1,15 @@
+# Montages supplémentaires propres à votre machine.
+# Copier ce fichier en `compose.override.yaml` (ignoré par Git, chargé automatiquement par
+# `docker compose`) puis adapter les chemins. Les `volumes` s'AJOUTENT à ceux de compose.yaml.
+#
+# Pourquoi : seul le HOME est monté par défaut. Un lien symbolique du HOME qui pointe VERS
+# L'EXTÉRIEUR (disque externe, /mnt/..., /run/media/...) est cassé dans le conteneur tant que sa
+# cible n'y est pas montée. Montez la cible AU MÊME CHEMIN que sur l'hôte.
+#   ls -l ~/Documents/kDrive      ->  ... -> /run/media/moi/MonDisque/kDrive
+services:
+  app:
+    volumes:
+      # Disque externe : le disque doit être monté sur l'hôte AVANT de démarrer le conteneur
+      - /run/media/moi/MonDisque:/run/media/moi/MonDisque
+      # Source en lecture seule : ajouter :ro
+      # - /srv/donnees:/srv/donnees:ro
