@@ -1,12 +1,17 @@
 # Backup Manager : application Nuxt + base SQLite persistante
+name: backup-manager
+
 services:
   app:
+    container_name: backup-manager
     build: .
     image: backup-manager:latest
     restart: unless-stopped
     ports:
-      # Publié uniquement sur la boucle locale de l'hôte (inaccessible depuis le réseau)
-      - "127.0.0.1:3000:3000"
+      # Publié uniquement sur la boucle locale de l'hôte (inaccessible depuis le réseau).
+      # Port hôte réglable via PORT (variable d'environnement ou fichier .env, comme en
+      # dev), 9090 par défaut. Le port interne du conteneur reste fixe (3000).
+      - "127.0.0.1:${PORT:-9090}:3000"
     # Configuration de l'application lue depuis .env (git-ignoré, modèle : .env.example).
     # Fichier facultatif ; il n'est jamais copié dans l'image (voir .dockerignore).
     env_file:
@@ -16,9 +21,11 @@ services:
       # Écoute sur toutes les interfaces DU conteneur (requis pour la redirection de port) ;
       # l'exposition à l'hôte est limitée à 127.0.0.1 par la section `ports`
       HOST: 0.0.0.0
+      # Port interne fixe : ne pas le déduire de PORT (.env), qui règle le port hôte
       PORT: 3000
       # Emplacement de la base SQLite (runtimeConfig.dbPath), dans le dossier monté
       # ci-dessous. Prioritaire sur le fichier .env : chemin propre au conteneur.
+      # Nom du fichier de base : backup-manager.db (dans /data)
       NUXT_DB_PATH: /data/backup-manager.db
       # Migrations SQL copiées dans l'image (prioritaire sur un éventuel .env local)
       NUXT_MIGRATIONS_FOLDER: /app/migrations
