@@ -90,7 +90,16 @@ async function remove() {
             <dt class="text-xs font-medium uppercase tracking-wide text-muted">Prochaine exécution</dt>
             <dd class="mt-1 text-sm tabular-nums">{{ task.enabled ? formatDate(task.nextRunAt) : 'Désactivée' }}</dd>
           </div>
-          <div class="sm:col-span-2">
+          <div>
+            <dt class="text-xs font-medium uppercase tracking-wide text-muted">Rétention</dt>
+            <dd class="mt-1 flex flex-wrap gap-1.5">
+              <UBadge v-for="label in formatRetention(task)" :key="label" color="neutral" variant="subtle" class="gap-1 tabular-nums">
+                <UIcon name="i-lucide-recycle" class="size-3" aria-hidden="true" />{{ label }}
+              </UBadge>
+              <span v-if="!formatRetention(task).length" class="text-sm text-muted">Illimitée</span>
+            </dd>
+          </div>
+          <div>
             <dt class="text-xs font-medium uppercase tracking-wide text-muted">Exclusions</dt>
             <dd class="mt-1 flex flex-wrap gap-1.5">
               <UBadge v-for="p in task.exclusions" :key="p" color="neutral" variant="subtle" class="font-mono">{{ p }}</UBadge>

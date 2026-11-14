@@ -1,4 +1,4 @@
-import type { ExecutionStatus } from '#shared/types/backup'
+import type { BackupTask, ExecutionStatus } from '#shared/types/backup'
 
 /** Formate un volume en octets (Ko, Mo, Go...) */
 export function formatBytes(bytes: number): string {
@@ -25,6 +25,16 @@ export function formatDuration(start: string, end: string | null): string {
   const seconds = (new Date(end).getTime() - new Date(start).getTime()) / 1000
   if (seconds < 60) return `${seconds.toFixed(1).replace('.', ',')} s`
   return `${Math.floor(seconds / 60)} min ${Math.round(seconds % 60)} s`
+}
+
+/** Libellés de la politique de rétention d'une tâche (vide = aucune limite) */
+export function formatRetention(task: Pick<BackupTask, 'retentionMaxFiles' | 'retentionMaxBytes'>): string[] {
+  const labels: string[] = []
+  if (task.retentionMaxFiles) {
+    labels.push(`${task.retentionMaxFiles} archive${task.retentionMaxFiles > 1 ? 's' : ''} max`)
+  }
+  if (task.retentionMaxBytes) labels.push(`${formatBytes(task.retentionMaxBytes)} max`)
+  return labels
 }
 
 export const statusLabels: Record<ExecutionStatus, string> = {

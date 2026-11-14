@@ -8,6 +8,7 @@ const emit = defineEmits<{ select: [task: BackupTaskSummary], create: [] }>()
 const columns: TableColumn<BackupTaskSummary>[] = [
   { accessorKey: 'name', header: 'Nom' },
   { accessorKey: 'nextRunAt', header: 'Prochaine exécution', meta: { class: { th: 'hidden sm:table-cell', td: 'hidden sm:table-cell' } } },
+  { id: 'retention', header: 'Rétention', meta: { class: { th: 'hidden sm:table-cell', td: 'hidden sm:table-cell' } } },
   { id: 'lastStatus', header: 'Dernière exécution' },
   { id: 'open', header: '', meta: { class: { th: 'hidden sm:table-cell', td: 'hidden sm:table-cell' } } }
 ]
@@ -38,10 +39,21 @@ const columns: TableColumn<BackupTaskSummary>[] = [
       <div class="mt-1 text-xs text-muted sm:hidden">
         {{ row.original.enabled ? `Prochaine : ${formatDate(row.original.nextRunAt)}` : 'Désactivée' }}
       </div>
+      <div class="mt-0.5 text-xs text-muted sm:hidden">
+        Rétention : {{ formatRetention(row.original).join(' · ') || 'illimitée' }}
+      </div>
     </template>
     <template #nextRunAt-cell="{ row }">
       <span v-if="row.original.enabled" class="tabular-nums">{{ formatDate(row.original.nextRunAt) }}</span>
       <UBadge v-else color="neutral" variant="outline" class="gap-1"><UIcon name="i-lucide-pause" class="size-3" aria-hidden="true" />Désactivée</UBadge>
+    </template>
+    <template #retention-cell="{ row }">
+      <div v-if="formatRetention(row.original).length" class="flex flex-wrap gap-1.5">
+        <UBadge v-for="label in formatRetention(row.original)" :key="label" color="neutral" variant="subtle" class="gap-1 tabular-nums">
+          <UIcon name="i-lucide-recycle" class="size-3" aria-hidden="true" />{{ label }}
+        </UBadge>
+      </div>
+      <span v-else class="text-xs text-muted">Illimitée</span>
     </template>
     <template #lastStatus-cell="{ row }">
       <div class="flex flex-wrap items-center gap-x-3 gap-y-1">

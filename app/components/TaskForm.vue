@@ -17,7 +17,8 @@ const state = reactive({
   exclusionsText: props.task?.exclusions.join('\n') ?? '',
   enabled: props.task?.enabled ?? true,
   // Rétention : champs texte, vides = pas de limite
-  retentionFilesText: props.task?.retentionMaxFiles?.toString() ?? '',
+  // UInput type="number" renvoie un nombre (ou undefined si vidé) : le type doit l'accepter
+  retentionFilesText: (props.task?.retentionMaxFiles?.toString() ?? '') as string | number | undefined,
   retentionVolumeText: initialVolume.value,
   retentionUnit: initialVolume.unit as VolumeUnit
 })
@@ -59,7 +60,7 @@ function applySuggestion() {
 
 const parsed = computed(() => {
   const { exclusionsText, retentionFilesText, retentionVolumeText, retentionUnit, ...rest } = state
-  const filesText = retentionFilesText.trim()
+  const filesText = String(retentionFilesText ?? '').trim()
   return {
     ...rest,
     exclusions: exclusionsText.split('\n').map(l => l.trim()).filter(Boolean),

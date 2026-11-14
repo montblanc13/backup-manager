@@ -2,6 +2,18 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions `vA.B.C` (A majeur, B mineur, C patch), source de vérité : `package.json`.
 
+## v1.5.1 - 2026-11-14
+
+### Fixed
+
+- La version racine de `package-lock.json` (restée à 1.4.0 dans la v1.5.0) est alignée sur `package.json`.
+- La rétention saisie dans le formulaire de tâche n'était pas enregistrée : le champ « Nombre max. d'archives » renvoie un nombre et le code appelait `.trim()` dessus, ce qui faisait échouer le calcul et envoyer `null`.
+
+### Added
+
+- La page d'une tâche affiche aussi sa politique de rétention.
+- La liste des tâches affiche la politique de rétention de chaque tâche (nombre max d'archives et/ou volume max, ou « Illimitée »).
+
 ## v1.5.0 - 2026-11-14
 
 Première version numérotée : elle regroupe les itérations 1.1.0 à 1.5.0 ci-dessous.
