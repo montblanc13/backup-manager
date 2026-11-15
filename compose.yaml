@@ -36,15 +36,22 @@ services:
       # Base SQLite et racine du sélecteur de dossier : ce sont les valeurs du .env (les MÊMES
       # qu'avec `npm run dev`), avec un repli sous le HOME de l'hôte. Le HOME étant monté à
       # l'identique ci-dessous, ces chemins hôte sont valides tels quels dans le conteneur.
+      # Windows : DOCKER_DB_PATH / DOCKER_BROWSE_ROOT (.env) priment, pour garder dans NUXT_* les
+      # chemins Windows de `npm run dev`.
       # NUXT_DB_PATH doit être un chemin ABSOLU (sinon il serait relatif à /app, non persistant).
-      NUXT_DB_PATH: ${NUXT_DB_PATH:-${HOME}/.local/share/backup-manager/backup-manager.db}
-      NUXT_BROWSE_ROOT: ${NUXT_BROWSE_ROOT:-${HOME}}
+      NUXT_DB_PATH: ${DOCKER_DB_PATH:-${NUXT_DB_PATH:-${CONTAINER_HOME:-${HOME}}}/.local/share/backup-manager/backup-manager.db}}
+      NUXT_BROWSE_ROOT: ${DOCKER_BROWSE_ROOT:-${NUXT_BROWSE_ROOT:-${CONTAINER_HOME:-${HOME}}}}
     volumes:
       # Le HOME de l'hôte (utilisateur qui lance `docker compose`) est monté AU MÊME CHEMIN dans
       # le conteneur : on saisit dans l'application les chemins de l'hôte, tels quels
       # (/home/moi/Documents...). Lecture/écriture : sources, destinations et base SQLite.
       # Attention : toute l'arborescence du HOME est accessible à l'application.
-      - ${HOME}:${HOME}
+      # Syntaxe longue (et non `${HOME}:${HOME}`) : sous WINDOWS, le HOME est de la forme
+      # C:/Users/moi, dont le « : » casse la syntaxe courte ("too many colons"). Il faut alors
+      # définir dans .env un chemin de montage Linux : CONTAINER_HOME=/host-home (voir README).
+      - type: bind
+        source: ${HOST_HOME:-${HOME}}
+        target: ${CONTAINER_HOME:-${HOME}}
 
       # --- Autres disques ou dossiers (hors HOME) : bind mount au MÊME chemin que sur l'hôte ---
       # Décommentez et adaptez (source en lecture seule : ajouter :ro).
