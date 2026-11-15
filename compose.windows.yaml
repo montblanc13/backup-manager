@@ -1,0 +1,25 @@
+# Surcharge pour Docker Desktop sous WINDOWS (à ajouter à compose.yaml).
+# Sous Linux/macOS, ne rien changer : `docker compose up --build` suffit.
+#
+# Pourquoi : le HOME Windows (C:/Users/moi) contient un « : » qui casse le montage `${HOME}:${HOME}`
+# de compose.yaml, et n'est pas un chemin valide dans le conteneur Linux. Ici le HOME est monté sur
+# /host-home : dans l'application, saisir les chemins sous la forme /host-home/Documents/...
+#
+# Usage (PowerShell) :
+#   docker compose -f compose.yaml -f compose.windows.yaml up --build
+# ou, une fois pour toutes, dans .env :
+#   COMPOSE_FILE=compose.yaml;compose.windows.yaml
+#
+# Les NUXT_DB_PATH / NUXT_BROWSE_ROOT du .env (chemins Windows pour `npm run dev`) sont ignorés
+# dans le conteneur, remplacés par les valeurs ci-dessous. Autre dossier ou disque : ajouter un
+# montage dans compose.override.yaml (ex. D:/Sauvegardes -> /d/Sauvegardes).
+services:
+  app:
+    environment:
+      NUXT_DB_PATH: ${DOCKER_DB_PATH:-/host-home/.local/share/backup-manager/backup-manager.db}
+      NUXT_BROWSE_ROOT: ${DOCKER_BROWSE_ROOT:-/host-home}
+    # !override : remplace (et non fusionne) la liste de volumes de compose.yaml
+    volumes: !override
+      - type: bind
+        source: ${USERPROFILE}
+        target: /host-home

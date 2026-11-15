@@ -169,7 +169,13 @@ Les autres réglages de cette section (volumes, `PORT`, `APP_UID` / `APP_GID`, r
 
 Votre **HOME est monté à l'identique** dans le conteneur : saisissez dans l'application les chemins de l'hôte, tels quels (`/home/moi/Documents`, …). La base SQLite (`NUXT_DB_PATH`) et le sélecteur de dossier (`NUXT_BROWSE_ROOT`, défaut : votre HOME) lisent les valeurs de votre `.env`, comme avec `npm run dev`. Sans `.env`, la base est créée dans `~/.local/share/backup-manager/`.
 
-**Windows (Docker Desktop)** : le HOME (`C:/Users/moi`) ne peut pas servir de chemin dans le conteneur Linux. Dans `.env`, définissez `HOST_HOME=C:/Users/moi` (facultatif si `HOME` est défini), `CONTAINER_HOME=/host-home`, `DOCKER_DB_PATH=/host-home/.local/share/backup-manager/backup-manager.db` et `DOCKER_BROWSE_ROOT=/host-home`. Les variables `DOCKER_*` priment sur `NUXT_*` dans le conteneur : `NUXT_DB_PATH` et `NUXT_BROWSE_ROOT` restent des chemins Windows pour `npm run dev`. Dans l'application sous Docker, saisissez les chemins sous la forme `/host-home/Documents/...`.
+**Windows (Docker Desktop)** : le HOME (`C:/Users/moi`) ne peut pas servir de chemin dans le conteneur Linux. Ajoutez `compose.windows.yaml`, qui monte votre profil sur `/host-home` :
+
+```powershell
+docker compose -f compose.yaml -f compose.windows.yaml up --build
+```
+
+Pour ne plus avoir à le préciser, ajoutez `COMPOSE_FILE=compose.yaml;compose.windows.yaml` à `.env`. Dans l'application, saisissez alors les chemins sous la forme `/host-home/Documents/...`. Les `NUXT_DB_PATH` / `NUXT_BROWSE_ROOT` du `.env` (chemins Windows pour `npm run dev`) sont ignorés dans le conteneur ; `DOCKER_DB_PATH` et `DOCKER_BROWSE_ROOT` les remplacent au besoin.
 
 Pour un disque ou un dossier **hors du HOME**, décommentez et adaptez un exemple de `compose.yaml` en montant le dossier **au même chemin** que sur l'hôte (`/mnt/sauvegardes:/mnt/sauvegardes`).
 

@@ -6,7 +6,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions `vA.
 
 ### Fixed
 
-- Docker sous Windows : `docker compose up` échouait (« too many colons ») car le montage `${HOME}:${HOME}` contenait le « : » de `C:/Users/...`. Montage en syntaxe longue, avec `HOST_HOME` et `CONTAINER_HOME` (par exemple `/host-home`) réglables dans `.env`, documentés dans le README. Nouvelles variables `DOCKER_DB_PATH` et `DOCKER_BROWSE_ROOT`, prioritaires sur `NUXT_*` dans le conteneur, pour garder des chemins Windows dans `NUXT_*` en développement.
+- Docker sous Windows : `docker compose up` échouait (« too many colons ») car le montage `${HOME}:${HOME}` contenait le « : » de `C:/Users/...`. Nouvelle surcharge `compose.windows.yaml` (HOME monté sur `/host-home`, base et sélecteur de dossier réglés en conséquence), documentée dans le README. `compose.yaml` reste inchangé pour Linux.
 
 ## v1.7.1 - 2026-11-14
 
