@@ -1,16 +1,13 @@
 import { DatabaseSync } from 'node:sqlite'
-import { mkdirSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { resolve } from 'node:path'
 import { drizzle } from 'drizzle-orm/node-sqlite'
 import { migrate } from 'drizzle-orm/node-sqlite/migrator'
 import * as schema from './schema'
 
 function createDb() {
   const config = useRuntimeConfig()
-  const path = resolve(config.dbPath)
-  mkdirSync(dirname(path), { recursive: true })
-
-  const client = new DatabaseSync(path)
+  // Crée ~/.config/backup-manager/{db,data} au besoin
+  const client = new DatabaseSync(ensureAppPaths().dbFile)
   client.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;')
 
   const db = drizzle({ client, schema })

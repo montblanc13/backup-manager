@@ -33,16 +33,16 @@ services:
       PORT: 3000
       # Migrations SQL copiées dans l'image (prioritaire sur un éventuel .env local)
       NUXT_MIGRATIONS_FOLDER: /app/migrations
-      # Base SQLite et racine du sélecteur de dossier : ce sont les valeurs du .env (les MÊMES
-      # qu'avec `npm run dev`), avec un repli sous le HOME de l'hôte. Le HOME étant monté à
-      # l'identique ci-dessous, ces chemins hôte sont valides tels quels dans le conteneur.
-      # NUXT_DB_PATH doit être un chemin ABSOLU (sinon il serait relatif à /app, non persistant).
-      NUXT_DB_PATH: ${NUXT_DB_PATH:-${HOME}/.local/share/backup-manager/backup-manager.db}
+      # Stockage de l'application (base dans db/, fichiers dans data/) : MÊME dossier qu'avec
+      # `npm run dev`, sous le HOME de l'hôte. Le HOME étant monté à l'identique ci-dessous, ce
+      # chemin hôte est valide tel quel dans le conteneur (le HOME du conteneur, lui, est autre).
+      NUXT_DATA_DIR: ${NUXT_DATA_DIR:-${HOME}/.config/backup-manager}
+      # Racine du sélecteur de dossier : valeur du .env, repli sur le HOME de l'hôte
       NUXT_BROWSE_ROOT: ${NUXT_BROWSE_ROOT:-${HOME}}
     volumes:
       # Le HOME de l'hôte (utilisateur qui lance `docker compose`) est monté AU MÊME CHEMIN dans
       # le conteneur : on saisit dans l'application les chemins de l'hôte, tels quels
-      # (/home/moi/Documents...). Lecture/écriture : sources, destinations et base SQLite.
+      # (/home/moi/Documents...). Lecture/écriture : sources, destinations et stockage de l'application.
       # Attention : toute l'arborescence du HOME est accessible à l'application.
       - ${HOME}:${HOME}
 

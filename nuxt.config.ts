@@ -7,9 +7,10 @@ export default defineNuxtConfig({
   // Auto-import de la couche d'accès à l'API (app/services)
   imports: { dirs: ['services'] },
   // Configuration serveur uniquement. Chaque clé est surchargée par la variable
-  // d'environnement NUXT_<CLE_EN_SNAKE_CASE> (lue depuis .env), ex. dbPath -> NUXT_DB_PATH
+  // d'environnement NUXT_<CLE_EN_SNAKE_CASE> (lue depuis .env), ex. dataDir -> NUXT_DATA_DIR
   runtimeConfig: {
-    dbPath: './data/backup-manager.db',
+    // Racine du stockage (base SQLite dans db/, fichiers dans data/). Vide = <HOME>/.config/backup-manager
+    dataDir: '',
     // Dossier des migrations Drizzle (à embarquer tel quel dans l'image de production)
     migrationsFolder: './server/database/migrations',
     // Clé API Anthropic (NUXT_ANTHROPIC_API_KEY) pour la suggestion de cron en langage naturel

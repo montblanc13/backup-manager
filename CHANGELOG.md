@@ -2,11 +2,16 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions `vA.B.C` (A majeur, B mineur, C patch), source de vérité : `package.json`.
 
-## v1.7.2 - 2026-11-15
+## v1.8.0 - 2026-11-15
+
+### Changed
+
+- **Stockage simplifié, identique sous Linux, macOS et Windows** : la base SQLite et les fichiers de l'application vivent sous le dossier personnel de l'utilisateur, `<HOME>/.config/backup-manager/{db,data}` (`os.homedir()`), créés au démarrage. `NUXT_DB_PATH` est supprimée au profit de `NUXT_DATA_DIR` (racine, facultative). **Migration** : déplacer l'ancienne base (`./data/backup-manager.db` ou `~/.local/share/backup-manager/backup-manager.db`) vers `~/.config/backup-manager/db/backup-manager.db`.
+- Docker : `compose.yaml` fixe `NUXT_DATA_DIR` sous le HOME de l'hôte (monté à l'identique) ; l'image n'a plus de volume `/data`.
 
 ### Fixed
 
-- Docker sous Windows : `docker compose up` échouait (« too many colons ») car le montage `${HOME}:${HOME}` contenait le « : » de `C:/Users/...`. Nouvelle surcharge `compose.windows.yaml` (HOME monté sur `/host-home`, base et sélecteur de dossier réglés en conséquence), documentée dans le README. `compose.yaml` reste inchangé pour Linux.
+- Docker sous Windows : `docker compose up` échouait (« too many colons ») car le montage `${HOME}:${HOME}` contenait le « : » de `C:/Users/...`. Nouvelle surcharge `compose.windows.yaml` (HOME monté sur `/host-home`), documentée dans le README. `compose.yaml` reste inchangé pour Linux.
 
 ## v1.7.1 - 2026-11-14
 

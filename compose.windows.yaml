@@ -10,14 +10,15 @@
 # ou, une fois pour toutes, dans .env :
 #   COMPOSE_FILE=compose.yaml;compose.windows.yaml
 #
-# Les NUXT_DB_PATH / NUXT_BROWSE_ROOT du .env (chemins Windows pour `npm run dev`) sont ignorés
-# dans le conteneur, remplacés par les valeurs ci-dessous. Autre dossier ou disque : ajouter un
+# Les NUXT_DATA_DIR / NUXT_BROWSE_ROOT du .env (chemins Windows pour `npm run dev`) sont ignorés
+# dans le conteneur, remplacés par les valeurs ci-dessous. Le stockage est le même dossier que
+# `npm run dev` (C:/Users/moi/.config/backup-manager). Autre dossier ou disque : ajouter un
 # montage dans compose.override.yaml (ex. D:/Sauvegardes -> /d/Sauvegardes).
 services:
   app:
     environment:
-      NUXT_DB_PATH: ${DOCKER_DB_PATH:-/host-home/.local/share/backup-manager/backup-manager.db}
-      NUXT_BROWSE_ROOT: ${DOCKER_BROWSE_ROOT:-/host-home}
+      NUXT_DATA_DIR: /host-home/.config/backup-manager
+      NUXT_BROWSE_ROOT: /host-home
     # !override : remplace (et non fusionne) la liste de volumes de compose.yaml
     volumes: !override
       - type: bind
