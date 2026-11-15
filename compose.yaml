@@ -39,7 +39,7 @@ services:
       # Windows : DOCKER_DB_PATH / DOCKER_BROWSE_ROOT (.env) priment, pour garder dans NUXT_* les
       # chemins Windows de `npm run dev`.
       # NUXT_DB_PATH doit être un chemin ABSOLU (sinon il serait relatif à /app, non persistant).
-      NUXT_DB_PATH: ${DOCKER_DB_PATH:-${NUXT_DB_PATH:-${CONTAINER_HOME:-${HOME}}}/.local/share/backup-manager/backup-manager.db}}
+      NUXT_DB_PATH: ${DOCKER_DB_PATH:-${NUXT_DB_PATH:-${CONTAINER_HOME:-${HOME}}/.local/share/backup-manager/backup-manager.db}}
       NUXT_BROWSE_ROOT: ${DOCKER_BROWSE_ROOT:-${NUXT_BROWSE_ROOT:-${CONTAINER_HOME:-${HOME}}}}
     volumes:
       # Le HOME de l'hôte (utilisateur qui lance `docker compose`) est monté AU MÊME CHEMIN dans
